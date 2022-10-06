@@ -1,9 +1,10 @@
-import requests
 from bs4 import BeautifulSoup
+import os
+import requests
 import string
 
-ARTICLES_URL = "https://nature.com/nature/articles?sort=PubDate&year=2020&page=3"
-ARTICLE_ROOT = "https://nature.com"
+ARTICLES_URL = url = 'https://www.nature.com/nature/articles?sort=PubDate&year=2020'
+ARTICLE_ROOT = 'https://nature.com'
 
 def get_quote(url):
     error_message = 'Invalid quote resource!'
@@ -53,34 +54,43 @@ def save_to_file(file_name, body):
         f.write(body)
         f.close()
 
-
-def load_article(title, url):
+def load_article(dir_name, title, url):
     full_url = f"{ARTICLE_ROOT}{url}"
     response = requests.get(full_url)
     if response:
         soup = BeautifulSoup(response.content, 'html.parser')
         body = soup.find("div", {"class": "c-article-body"}).text.strip().encode()
         file_name = create_file_name(title)
-        save_to_file(file_name, body)
+        print(dir_name)
+        print(file_name)
+        file_path = os.path.join(dir_name, file_name)
+        print(file_path)
+        save_to_file(file_path, body)
     else:
         print(f'Error code {response.status_code}')
-def load_all_articles(url):
-    response = requests.get(url)
-    if not response:
-        print(f'The URL returned {response.status_code}!')
-    else:
-        soup = BeautifulSoup(response.content, 'html.parser')
-        articles = soup.findAll('article')
-        for article in articles:
-            if article.find('span', {'data-test': 'article.type'}).text.strip().lower() == 'news':
-                article_url = article.find('a', {'data-track-action': 'view article'}).get('href').strip()
-                article_title = article.find('a', {'data-track-action': 'view article'}).text.strip()
-                load_article(article_title, article_url)
-        print('Articles are saved!')
 
 
-# print('Input the URL:')
-# url = input()
-# print(get_movie_info(url))
-url = 'https://www.nature.com/nature/articles?sort=PubDate&year=2020&page=3'
-load_all_articles(url)
+
+def load_articles(url, n_pages, type):
+    for k in range(1, n_pages + 1):
+        response = requests.get(url, params={'page': k})
+        if not response:
+            print(f'The URL returned {response.status_code}!')
+        else:
+            dir_name = f'Page_{k}'
+            if not os.path.exists(dir_name):
+                os.mkdir(dir_name)
+            soup = BeautifulSoup(response.content, 'html.parser')
+            articles = soup.findAll('article')
+            for article in articles:
+                if article.find('span', {'data-test': 'article.type'}).text.strip().lower() == type.strip().lower():
+                    article_url = article.find('a', {'data-track-action': 'view article'}).get('href').strip()
+                    article_title = article.find('a', {'data-track-action': 'view article'}).text.strip()
+                    load_article(dir_name, article_title, article_url)
+    print('Articles are saved!')
+
+
+
+n_pages = int(input())
+type = input()
+load_articles(ARTICLES_URL, n_pages, type)
